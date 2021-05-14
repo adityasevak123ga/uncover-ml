@@ -71,7 +71,7 @@ X_val, y_val = create_train_test_set(data, * val_data_lines)
 X_test, y_test = create_train_test_set(data, * test_data_lines)
 
 
-X_all, y_all = create_train_test_set(data, * all_data_lines)
+X_train_val, y_train_val = create_train_test_set(data, * train_data_lines, * val_data_lines)
 
 
 def my_custom_scorer(reg, X, y):
@@ -81,7 +81,7 @@ def my_custom_scorer(reg, X, y):
     return r2
 
 
-reg = XGBRegressor(random_state=0)
+reg = XGBRegressor(objective='reg:squarederror', random_state=0)
 
 
 xgb_space = {
@@ -111,7 +111,7 @@ def on_step(optim_result):
 searchcv = BayesSearchCV(
     reg,
     search_spaces=xgb_space,
-    n_iter=500,
+    n_iter=50,
     cv=2,  # use 2 when using custom scoring using X_test
     verbose=1000,
     n_points=12,
@@ -119,11 +119,43 @@ searchcv = BayesSearchCV(
     scoring=my_custom_scorer
 )
 
-searchcv.fit(X_train, y_train, callback=on_step)
+# searchcv.fit(X_train, y_train, callback=on_step)
 import time
-pickle.dump(searchcv, open(f"{reg.__class__.__name__}.{int(time.time())}.model", 'wb'))
+# pickle.dump(searchcv, open(f"{reg.__class__.__name__}.{int(time.time())}.model", 'wb'))
+searchcv = pickle.load(open('XGBRegressor.1621024965.model', 'rb'))
 
 print(r2_score(y_train, searchcv.predict(X_train)))
 print(r2_score(y_val, searchcv.predict(X_val)))
 print(r2_score(y_test, searchcv.predict(X_test)))
+
+
+final_model = XGBRegressor(objective='reg:squarederror', n_jobs=3, ** searchcv.best_params_)
+final_model.fit(X_train_val, y_train_val)
+
+print(r2_score(y_test, final_model.predict(X_test)))
+# import IPython; IPython.embed(); import sys; sys.exit()
+
+# optimised model in nci
+from collections import OrderedDict
+
+nci_params = OrderedDict([('colsample_bylevel', 1.0),
+             ('colsample_bynode', 0.21747339007554714),
+             ('colsample_bytree', 0.3),
+             ('gamma', 0.34165675703813775),
+             ('learning_rate', 0.4416591777848587),
+             ('max_delta_step', 4),
+             ('max_depth', 9),
+             ('min_child_weight', 2),
+             ('n_estimators', 128),
+             ('reg_alpha', 8.996247710883825),
+             ('reg_lambda', 0.01),
+             ('subsample', 0.5619406651679848)])
+
+nci_model = XGBRegressor(objective='reg:squarederror', n_jobs=3, ** nci_params)
+
+plot_interp_line = np.random.choice(test_data_lines)
+X_val_line, y_val_line = create_train_test_set(data, plot_interp_line)
+plot_2d_section(X_val_line, plot_interp_line, final_model, 'ceno_euc_a', conductivities, thickness)
+
+
 import IPython; IPython.embed(); import sys; sys.exit()
