@@ -116,7 +116,7 @@ def r2_score(y_true, y_pred):
 def build_and_compile_model(norm):
     model = tf.keras.Sequential([
         norm,
-        layers.Dense(102, activation='relu', kernel_regularizer=regularizers.l2(0.01)),
+        layers.Dense(101, activation='relu', kernel_regularizer=regularizers.l2(0.01)),
         layers.Dropout(0.2),
         layers.Dense(2000, activation='relu', kernel_regularizer=regularizers.l2(0.01)),
         layers.Dropout(0.2),
@@ -173,7 +173,8 @@ history = dnn_model.fit(
     validation_split=0.2,
     # batch_size=train_features.shape[0]//batch_size_factor,
     callbacks=callbacks_list,
-    verbose=2, epochs=epochs)
+    verbose=2, epochs=epochs
+)
 
 plot_loss(history)
 
@@ -209,6 +210,9 @@ dnn_space = {
     'n_estimators': Integer(20, 200),
 
 }
+
+row = (x, y, c1, c2, cn, con_1(y1), con_2(y2), con1-l1(y1), con1+l1(y2), con1-l2(y1), con1+l2(y2), con1-l1(y1),
+       con1+l3(y2))
 
 
 # activation, regularizer, n1, n2

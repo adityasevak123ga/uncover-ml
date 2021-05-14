@@ -157,7 +157,7 @@ def plot_2d_section(X_val_line: pd.DataFrame, val_interp_line: pd.DataFrame, mod
     val_interp_line = add_delta(val_interp_line, origin=origin)
     d_conduct_cols = ['d_' + c for c in conductivities]
     Z = X_val_line[conductivities]
-    # Z = X[d_conduct_cols]
+    # Z = X_val_line[d_conduct_cols]
     # Z = Z - np.min(np.min((Z))) + 1.0e-5
     h = X_val_line[thickness]
     dd = X_val_line.d
