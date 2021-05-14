@@ -50,13 +50,13 @@ def extract_required_aem_data(in_scope_aem_data, interp_data, thickness, conduct
     return aem_xy_and_other_covs, aem_conductivities, aem_thickness
 
 
-def create_train_test_set(data, * excluded_interp_data):
+def create_train_test_set(data, * included_interp_data):
     X = data['covariates']
     y = data['targets']
-    included_lines = np.zeros(X.shape[0], dtype=bool)    # nothing is excluded
+    included_lines = np.zeros(X.shape[0], dtype=bool)    # nothing is included
 
-    for ex_data in excluded_interp_data:
-        x_max, x_min, y_max, y_min = extent_of_data(ex_data)
+    for in_data in included_interp_data:
+        x_max, x_min, y_max, y_min = extent_of_data(in_data)
         included_lines = included_lines | \
                            ((X.POINT_X < x_max + dis_tol) & (X.POINT_X > x_min - dis_tol) &
                             (X.POINT_Y < y_max + dis_tol) & (X.POINT_Y > y_min - dis_tol))
@@ -127,17 +127,58 @@ def create_interp_data(input_interp_data, included_lines, line_col='line'):
 
 
 def add_delta(line, origin=None):
-    line = line.sort_values(by='Y_coor', ascending=False)
-    line['X_coor_diff'] = line['X_coor'].diff()
-    line['Y_coor_diff'] = line['Y_coor'].diff()
-    line['delta'] = np.sqrt(line.X_coor_diff ** 2 + line.Y_coor_diff ** 2)
+    line = line.sort_values(by='POINT_Y', ascending=False)
+    line['POINT_X_diff'] = line['POINT_X'].diff()
+    line['POINT_Y_diff'] = line['POINT_Y'].diff()
+    line['delta'] = np.sqrt(line.POINT_X_diff ** 2 + line.POINT_Y_diff ** 2)
     line['delta'] = line['delta'].fillna(value=0.0)
     if origin is not None:
         line['delta'].iat[0] = np.sqrt(
-            (line.X_coor.iat[0]-origin[0]) ** 2 +
-            (line.Y_coor.iat[0]-origin[1]) ** 2
+            (line.POINT_X.iat[0]-origin[0]) ** 2 +
+            (line.POINT_Y.iat[0]-origin[1]) ** 2
         )
 
     line['d'] = line['delta'].cumsum()
     line = line.sort_values(by=['d'], ascending=True)
     return line
+
+
+from typing import List
+
+def plot_2d_section(X_val_line: pd.DataFrame, val_interp_line: pd.DataFrame, model, col_name: str,
+                    conductivities: List[str], thickness: List[str],
+                    flip_column=False, v_min=0.3, v_max=0.8):
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import LogNorm, Normalize, SymLogNorm, PowerNorm
+    from matplotlib.colors import Colormap
+    original_cols = X_val_line.columns[:]
+    X_val_line = add_delta(X_val_line)
+    origin = (X_val_line.POINT_X.iat[0], X_val_line.POINT_Y.iat[0])
+    val_interp_line = add_delta(val_interp_line, origin=origin)
+    d_conduct_cols = ['d_' + c for c in conductivities]
+    Z = X_val_line[conductivities]
+    # Z = X[d_conduct_cols]
+    # Z = Z - np.min(np.min((Z))) + 1.0e-5
+    h = X_val_line[thickness]
+    dd = X_val_line.d
+    ddd = np.atleast_2d(dd).T
+    d = np.repeat(ddd, h.shape[1], axis=1)
+    fig, ax = plt.subplots(figsize=(40, 4))
+    cmap = plt.get_cmap('viridis')
+
+    # Normalize(vmin=0.3, vmax=0.6) d(cond) norm
+    im = ax.pcolormesh(d, -h, Z, norm=LogNorm(), cmap=cmap, linewidth=1, rasterized=True)
+    fig.colorbar(im, ax=ax)
+    axs = ax.twinx()
+    ax.plot(X_val_line.d, -model.predict(X_val_line[original_cols]), label='prediction', linewidth=2, color='r')
+    ax.plot(val_interp_line.d, -val_interp_line.Z_coor, label='interpretation', linewidth=2, color='k')
+
+    axs.plot(X_val_line.d, -X_val_line[col_name] if flip_column else X_val_line[col_name], label=col_name, linewidth=2, color='orange')
+
+    ax.set_xlabel('distance along aem line (m)')
+    ax.set_ylabel('depth (m)')
+    plt.title("Conductivity vs depth")
+
+    ax.legend()
+    axs.legend()
+    plt.show()

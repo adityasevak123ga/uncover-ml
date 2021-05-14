@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-
+np.random.seed(6)
 # Make numpy printouts easier to read.
 np.set_printoptions(precision=3, suppress=True)
 
@@ -29,7 +29,7 @@ from tensorflow.keras.layers.experimental import preprocessing
 normalizer = preprocessing.Normalization()
 
 
-from aem_sections.utils import extract_required_aem_data, convert_to_xy, create_interp_data, create_train_test_set
+from aem_sections.utils import extract_required_aem_data, convert_to_xy, create_interp_data, create_train_test_set, plot_2d_section
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger()
@@ -47,9 +47,6 @@ original_aem_data = gpd.GeoDataFrame.from_file(Path(aem_folder).joinpath('high_r
 # columns
 conductivities = [c for c in original_aem_data.columns if c.startswith('cond')]
 thickness = [t for t in original_aem_data.columns if t.startswith('thick')]
-
-print(conductivities)
-print(thickness)
 
 line_col = 'SURVEY_LIN'
 lines_in_data = np.unique(all_interp_data[line_col])
@@ -69,8 +66,6 @@ else:
     log.warning("Reusing data from disc!!!")
     data = pickle.load(open('covariates_targets_2d.data', 'rb'))
 
-# import IPython; IPython.embed(); import sys; sys.exit()
-
 train_data_lines = [create_interp_data(all_interp_data, included_lines=i, line_col=line_col) for i in train_lines_in_data]
 test_data_lines = [create_interp_data(all_interp_data, included_lines=i, line_col=line_col) for i in test_lines_in_data]
 
@@ -85,36 +80,15 @@ X_test, y_test = create_train_test_set(data, * test_data_lines)
 
 X_all, y_all = create_train_test_set(data, * all_data_lines)
 
-
 train_features = X_train.copy()
 test_features = X_test.copy()
 # validation_features = X_val.copy()
 
 normalizer.adapt(np.array(train_features))
 
-linear_model = tf.keras.Sequential([
-    normalizer,
-    layers.Dense(units=1)
-])
-
-linear_model.predict(train_features[:10])
-
-linear_model.compile(
-    optimizer=tf.optimizers.Adam(learning_rate=0.1),
-    loss='mean_absolute_error',
-    metrics=[])
-
-# history = linear_model.fit(
-#     train_features, y_train,
-#     epochs=100,
-#     # suppress logging
-#     verbose=2,
-#     # Calculate validation results on 20% of the training data
-#     validation_split=0.2)
-
 from tensorflow.keras.callbacks import LearningRateScheduler, History, EarlyStopping
-np.random.seed(5)
-epochs = 100
+
+epochs = 10
 learning_rate = 0.1  # initial learning rate
 decay_rate = 0.1
 momentum = 0.8
@@ -128,7 +102,7 @@ def exp_decay(epoch):
 loss_history = History()
 lr_rate = LearningRateScheduler(exp_decay)
 early_stopping = EarlyStopping(min_delta=1.0e-6, verbose=1, patience=3)
-callbacks_list = [loss_history, lr_rate, early_stopping]
+callbacks_list = [loss_history]
 
 from tensorflow.keras import backend as K
 
@@ -139,17 +113,17 @@ def r2_score(y_true, y_pred):
     return 1 - SS_res/(SS_tot + K.epsilon())
 
 
-def build_and_compile_model(norm, activation, regularizer, input_dim, hidden_dim):
+def build_and_compile_model(norm):
     model = tf.keras.Sequential([
         norm,
-        layers.Dense(input_dim, activation=activation, kernel_regularizer=regularizers.l2(regularizer)),
-        layers.Dropout(0.5),
-        layers.Dense(hidden_dim, activation=activation, kernel_regularizer=regularizers.l2(regularizer)),
-        layers.Dropout(0.5),
+        layers.Dense(102, activation='relu', kernel_regularizer=regularizers.l2(0.01)),
+        layers.Dropout(0.2),
+        layers.Dense(2000, activation='relu', kernel_regularizer=regularizers.l2(0.01)),
+        layers.Dropout(0.2),
         layers.Dense(1)
     ])
 
-    model.compile(loss='mean_squared_error',
+    model.compile(loss='mean_absolute_error',
                   optimizer=tf.keras.optimizers.Adam(learning_rate=learning_rate),
                   metrics=['mean_absolute_error', 'mean_squared_error', r2_score]
                   )
@@ -190,36 +164,38 @@ def plot_r2_score_and_loss(history):
 
 test_results = {}
 
-# plot_loss(history)
-
-test_results['linear_model'] = linear_model.evaluate(test_features, y_test, verbose=1)
-
-
-# dnn_model = build_and_compile_model(normalizer)
+dnn_model = build_and_compile_model(normalizer)
 batch_size_factor = 10
 
-# history = dnn_model.fit(
-#     train_features, y_train,
-#     validation_split=0.2,
-#     batch_size=train_features.shape[0]//batch_size_factor,
-#     callbacks=callbacks_list,
-#     verbose=2, epochs=epochs)
-#
-# plot_loss(history)
-#
-# test_results['dnn_model'] = dnn_model.evaluate(test_features, y_test, verbose=1)
-# # print(pd.DataFrame(test_results, index=['Mean absolute error [Ceno Depth]']).T)
-#
-# # print(r2_score(y_test, linear_model.predict(test_features)))
-# print('r2 score dnn: ', r2_score_sklearn(y_test, dnn_model.predict(test_features)))
-#
-# import time
-# # pickle.dump(searchcv, open(f"{reg.__class__.__name__}.{int(time.time())}.model", 'wb'))
-# str_with_time = f"dnn.{int(time.time())}.model"
-# Path('saved_model').mkdir(exist_ok=True)
-# model_file_name = Path('saved_model').joinpath(str_with_time)
-# dnn_model.save(model_file_name)
-# import IPython; IPython.embed(); import sys; sys.exit()
+
+history = dnn_model.fit(
+    train_features, y_train,
+    validation_split=0.2,
+    # batch_size=train_features.shape[0]//batch_size_factor,
+    callbacks=callbacks_list,
+    verbose=2, epochs=epochs)
+
+plot_loss(history)
+
+test_results['dnn_model'] = dnn_model.evaluate(test_features, y_test, verbose=1)
+# print(pd.DataFrame(test_results, index=['Mean absolute error [Ceno Depth]']).T)
+
+# print(r2_score(y_test, linear_model.predict(test_features)))
+print('r2 score dnn: ', r2_score_sklearn(y_test, dnn_model.predict(test_features)))
+
+import time
+# pickle.dump(searchcv, open(f"{reg.__class__.__name__}.{int(time.time())}.model", 'wb'))
+str_with_time = f"dnn.{int(time.time())}.model"
+Path('saved_model').mkdir(exist_ok=True)
+model_file_name = Path('saved_model').joinpath(str_with_time)
+dnn_model.save(model_file_name)
+
+# plotting
+val_interp_line = np.random.choice(test_data_lines)
+X_val_line, y_val_line = create_train_test_set(data, val_interp_line)
+plot_2d_section(X_val_line, val_interp_line, dnn_model, 'ceno_euc_a', conductivities, thickness)
+
+import IPython; IPython.embed(); import sys; sys.exit()
 
 
 # optimisation
