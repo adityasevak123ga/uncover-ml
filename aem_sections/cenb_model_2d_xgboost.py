@@ -155,7 +155,7 @@ nci_model = XGBRegressor(objective='reg:squarederror', n_jobs=3, ** nci_params)
 
 plot_interp_line = np.random.choice(test_data_lines)
 X_val_line, y_val_line = create_train_test_set(data, plot_interp_line)
-plot_2d_section(X_val_line, plot_interp_line, final_model, 'ceno_euc_a', conductivities, thickness)
+plot_2d_section(X_val_line, plot_interp_line, final_model, 'ceno_euc_a', conductivities, thickness, flip_column=True)
 
 
 import IPython; IPython.embed(); import sys; sys.exit()
