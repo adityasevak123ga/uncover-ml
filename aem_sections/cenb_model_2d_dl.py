@@ -88,7 +88,7 @@ normalizer.adapt(np.array(train_features))
 
 from tensorflow.keras.callbacks import LearningRateScheduler, History, EarlyStopping
 
-epochs = 10
+epochs = 100
 learning_rate = 0.1  # initial learning rate
 decay_rate = 0.1
 momentum = 0.8
@@ -116,10 +116,15 @@ def r2_score(y_true, y_pred):
 def build_and_compile_model(norm):
     model = tf.keras.Sequential([
         norm,
-        layers.Dense(101, activation='relu', kernel_regularizer=regularizers.l2(0.01)),
+        layers.Dense(101, activation='relu'),
         layers.Dropout(0.2),
-        layers.Dense(2000, activation='relu', kernel_regularizer=regularizers.l2(0.01)),
+        layers.Dense(2000, activation='relu'),
         layers.Dropout(0.2),
+        layers.Dense(1000, activation='relu'),
+        layers.Dropout(0.2),
+        # layers.Dense(200, activation='relu', kernel_regularizer=regularizers.l2(0.01)),
+        # layers.Dense(200, activation='relu', kernel_regularizer=regularizers.l2(0.001)),
+        # ,
         layers.Dense(1)
     ])
 
