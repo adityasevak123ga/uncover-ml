@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-np.random.seed(6)
+# np.random.seed(6)
 # Make numpy printouts easier to read.
 np.set_printoptions(precision=3, suppress=True)
 
@@ -101,8 +101,8 @@ def exp_decay(epoch):
 # learning schedule callback
 loss_history = History()
 lr_rate = LearningRateScheduler(exp_decay)
-early_stopping = EarlyStopping(min_delta=1.0e-6, verbose=1, patience=3)
-callbacks_list = [loss_history]
+early_stopping = EarlyStopping(monitor='loss', min_delta=1.0e-6, verbose=1, patience=10)
+callbacks_list = [loss_history, lr_rate, early_stopping]
 
 from tensorflow.keras import backend as K
 
@@ -112,20 +112,23 @@ def r2_score(y_true, y_pred):
     SS_tot = K.sum(K.square(y_true - K.mean(y_true)))
     return 1 - SS_res/(SS_tot + K.epsilon())
 
+#  good model
+# model = tf.keras.Sequential([
+#         norm,
+#         layers.Dense(200, activation='relu', kernel_regularizer=regularizers.l2(0.0001)),
+#         layers.Dense(50, activation='relu', kernel_regularizer=regularizers.l2(0.0001)),
+#         layers.Dense(1, activation='linear')
+#     ])
+
 
 def build_and_compile_model(norm):
     model = tf.keras.Sequential([
         norm,
-        layers.Dense(101, activation='relu'),
-        layers.Dropout(0.2),
-        layers.Dense(2000, activation='relu'),
-        layers.Dropout(0.2),
-        layers.Dense(1000, activation='relu'),
-        layers.Dropout(0.2),
-        # layers.Dense(200, activation='relu', kernel_regularizer=regularizers.l2(0.01)),
-        # layers.Dense(200, activation='relu', kernel_regularizer=regularizers.l2(0.001)),
-        # ,
-        layers.Dense(1)
+        layers.Dense(200, activation='relu', kernel_regularizer=regularizers.l2(0.01)),
+        layers.Dense(100, activation='relu', kernel_regularizer=regularizers.l2(0.01)),
+        layers.Dense(50, activation='relu', kernel_regularizer=regularizers.l2(0.01)),
+        layers.Dense(50, activation='relu', kernel_regularizer=regularizers.l2(0.01)),
+        layers.Dense(1, activation='linear')
     ])
 
     model.compile(loss='mean_absolute_error',
@@ -170,13 +173,13 @@ def plot_r2_score_and_loss(history):
 test_results = {}
 
 dnn_model = build_and_compile_model(normalizer)
-batch_size_factor = 10
+batch_size_factor = 20
 
 
 history = dnn_model.fit(
     train_features, y_train,
     validation_split=0.2,
-    # batch_size=train_features.shape[0]//batch_size_factor,
+    batch_size=200,
     callbacks=callbacks_list,
     verbose=2, epochs=epochs
 )
@@ -199,7 +202,7 @@ dnn_model.save(model_file_name)
 # plotting
 val_interp_line = np.random.choice(test_data_lines)
 X_val_line, y_val_line = create_train_test_set(data, val_interp_line)
-plot_2d_section(X_val_line, val_interp_line, dnn_model, 'ceno_euc_a', conductivities, thickness)
+plot_2d_section(X_val_line, val_interp_line, dnn_model, 'ceno_euc_a', conductivities, thickness, flip_column=True)
 
 import IPython; IPython.embed(); import sys; sys.exit()
 

@@ -80,7 +80,6 @@ def my_custom_scorer(reg, X, y):
     r2 = r2_score(y_val, y_val_pred)
     return r2
 
-
 reg = XGBRegressor(objective='reg:squarederror', random_state=0)
 
 
@@ -122,7 +121,7 @@ searchcv = BayesSearchCV(
 # searchcv.fit(X_train, y_train, callback=on_step)
 import time
 # pickle.dump(searchcv, open(f"{reg.__class__.__name__}.{int(time.time())}.model", 'wb'))
-searchcv = pickle.load(open('XGBRegressor.1621024965.model', 'rb'))
+searchcv = pickle.load(open('XGBRegressor.1621552161.model', 'rb'))
 
 print(r2_score(y_train, searchcv.predict(X_train)))
 print(r2_score(y_val, searchcv.predict(X_val)))

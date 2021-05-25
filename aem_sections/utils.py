@@ -145,9 +145,13 @@ def add_delta(line, origin=None):
 
 from typing import List
 
-def plot_2d_section(X_val_line: pd.DataFrame, val_interp_line: pd.DataFrame, model, col_name: str,
+
+def plot_2d_section(X_val_line: pd.DataFrame, val_interp_line: pd.DataFrame, model, col_names: List[str],
                     conductivities: List[str], thickness: List[str],
                     flip_column=False, v_min=0.3, v_max=0.8):
+    if isinstance(col_names, str):
+        col_names = [col_names]
+
     import matplotlib.pyplot as plt
     from matplotlib.colors import LogNorm, Normalize, SymLogNorm, PowerNorm
     from matplotlib.colors import Colormap
@@ -156,9 +160,9 @@ def plot_2d_section(X_val_line: pd.DataFrame, val_interp_line: pd.DataFrame, mod
     origin = (X_val_line.POINT_X.iat[0], X_val_line.POINT_Y.iat[0])
     val_interp_line = add_delta(val_interp_line, origin=origin)
     d_conduct_cols = ['d_' + c for c in conductivities]
-    Z = X_val_line[conductivities]
-    # Z = X_val_line[d_conduct_cols]
-    # Z = Z - np.min(np.min((Z))) + 1.0e-5
+    # Z = X_val_line[conductivities]
+    Z = X_val_line[d_conduct_cols]
+    Z = Z - np.min(np.min((Z))) + 1.0e-10
     h = X_val_line[thickness]
     dd = X_val_line.d
     ddd = np.atleast_2d(dd).T
@@ -167,17 +171,17 @@ def plot_2d_section(X_val_line: pd.DataFrame, val_interp_line: pd.DataFrame, mod
     cmap = plt.get_cmap('viridis')
 
     # Normalize(vmin=0.3, vmax=0.6) d(cond) norm
-    im = ax.pcolormesh(d, -h, Z, norm=LogNorm(), cmap=cmap, linewidth=1, rasterized=True)
+    im = ax.pcolormesh(d, -h, Z, norm=LogNorm(vmin=0.2, vmax=0.5), cmap=cmap, linewidth=1, rasterized=True)
     fig.colorbar(im, ax=ax)
     axs = ax.twinx()
     ax.plot(X_val_line.d, -model.predict(X_val_line[original_cols]), label='prediction', linewidth=2, color='r')
     ax.plot(val_interp_line.d, -val_interp_line.Z_coor, label='interpretation', linewidth=2, color='k')
-
-    axs.plot(X_val_line.d, -X_val_line[col_name] if flip_column else X_val_line[col_name], label=col_name, linewidth=2, color='orange')
+    for c in col_names:
+        axs.plot(X_val_line.d, -X_val_line[c] if flip_column else X_val_line[c], label=c, linewidth=2, color='orange')
 
     ax.set_xlabel('distance along aem line (m)')
     ax.set_ylabel('depth (m)')
-    plt.title("Conductivity vs depth")
+    plt.title("d(Conductivity) vs depth")
 
     ax.legend()
     axs.legend()
