@@ -110,8 +110,8 @@ def on_step(optim_result):
 
 class SmoothXGBRegressor(XGBRegressor):
     def score(self, X, y, sample_weight=None):
-        y = super().predict(X)
-        y_smooth = savgol_filter(y, 51, 3)  # window size 51, polynomial order 3
+        y_pred = super().predict(X)
+        y_smooth = savgol_filter(y_pred, 51, 3)  # window size 51, polynomial order 3
         return r2_score(y, y_smooth, sample_weight=sample_weight)
 
 
