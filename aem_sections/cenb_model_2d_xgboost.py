@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-np.random.seed(6)
+np.random.seed(16)
 # Make numpy printouts easier to read.
 np.set_printoptions(precision=3, suppress=True)
 
@@ -109,10 +109,15 @@ def on_step(optim_result):
 
 
 class SmoothXGBRegressor(XGBRegressor):
-    def score(self, X, y, sample_weight=None):
-        y_pred = super().predict(X)
-        y_smooth = savgol_filter(y_pred, 51, 3)  # window size 51, polynomial order 3
-        return r2_score(y, y_smooth, sample_weight=sample_weight)
+
+    # def score(self, X, y, sample_weight=None):
+    #     y_pred = super().predict(X)
+    #     y_smooth = savgol_filter(y_pred, 51, 3)  # window size 51, polynomial order 3
+    #     return r2_score(y, y_smooth, sample_weight=sample_weight)
+
+    def predict(self, data, output_margin=False, ntree_limit=None, validate_features=True):
+        y_pred = super(SmoothXGBRegressor, self).predict(data, output_margin, ntree_limit, validate_features)
+        return savgol_filter(y_pred, 51, 3)  # window size 51, polynomial order 3
 
 
 reg = SmoothXGBRegressor(objective='reg:squarederror', random_state=0)
