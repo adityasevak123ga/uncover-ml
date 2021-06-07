@@ -176,8 +176,8 @@ def plot_2d_section(X_val_line: pd.DataFrame, val_interp_line: pd.DataFrame, mod
     axs = ax.twinx()
     ax.plot(X_val_line.d, -model.predict(X_val_line[original_cols]), label='prediction', linewidth=2, color='r')
     ax.plot(val_interp_line.d, -val_interp_line.Z_coor, label='interpretation', linewidth=2, color='k')
-    for c in col_names:
-        axs.plot(X_val_line.d, -X_val_line[c] if flip_column else X_val_line[c], label=c, linewidth=2, color='orange')
+    # for c in col_names:
+    #     axs.plot(X_val_line.d, -X_val_line[c] if flip_column else X_val_line[c], label=c, linewidth=2, color='orange')
 
     ax.set_xlabel('distance along aem line (m)')
     ax.set_ylabel('depth (m)')

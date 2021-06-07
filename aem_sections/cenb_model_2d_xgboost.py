@@ -74,13 +74,14 @@ X_test, y_test = create_train_test_set(data, * test_data_lines)
 X_train_val, y_train_val = create_train_test_set(data, * train_data_lines, * val_data_lines)
 
 
+from scipy.signal import savgol_filter
+
+
 def my_custom_scorer(reg, X, y):
     """learn on train data and predict on test data to ensure total out of sample validation"""
     y_val_pred = reg.predict(X_val)
     r2 = r2_score(y_val, y_val_pred)
     return r2
-
-reg = XGBRegressor(objective='reg:squarederror', random_state=0)
 
 
 xgb_space = {
@@ -107,50 +108,60 @@ def on_step(optim_result):
         return True
 
 
+class SmoothXGBRegressor(XGBRegressor):
+    def score(self, X, y, sample_weight=None):
+        y = super().predict(X)
+        y_smooth = savgol_filter(y, 51, 3)  # window size 51, polynomial order 3
+        return r2_score(y, y_smooth, sample_weight=sample_weight)
+
+
+reg = SmoothXGBRegressor(objective='reg:squarederror', random_state=0)
+
+
 searchcv = BayesSearchCV(
     reg,
     search_spaces=xgb_space,
-    n_iter=50,
+    n_iter=48,
     cv=2,  # use 2 when using custom scoring using X_test
     verbose=1000,
-    n_points=12,
-    n_jobs=3,
+    n_points=24,
+    n_jobs=12,
     scoring=my_custom_scorer
 )
 
-# searchcv.fit(X_train, y_train, callback=on_step)
+searchcv.fit(X_train, y_train, callback=on_step)
 import time
-# pickle.dump(searchcv, open(f"{reg.__class__.__name__}.{int(time.time())}.model", 'wb'))
-searchcv = pickle.load(open('XGBRegressor.1621552161.model', 'rb'))
+pickle.dump(searchcv, open(f"{reg.__class__.__name__}.{int(time.time())}.model", 'wb'))
+# searchcv = pickle.load(open('XGBRegressor.1623051252.model', 'rb'))
+
+final_model = SmoothXGBRegressor(objective='reg:squarederror', n_jobs=3, ** searchcv.best_params_)
+
+final_model.fit(X_train_val, y_train_val)
 
 print(r2_score(y_train, searchcv.predict(X_train)))
 print(r2_score(y_val, searchcv.predict(X_val)))
 print(r2_score(y_test, searchcv.predict(X_test)))
 
-
-final_model = XGBRegressor(objective='reg:squarederror', n_jobs=3, ** searchcv.best_params_)
-final_model.fit(X_train_val, y_train_val)
-
-print(r2_score(y_test, final_model.predict(X_test)))
+print(final_model.score(X_test, y_test))
 # import IPython; IPython.embed(); import sys; sys.exit()
 
 # optimised model in nci
 from collections import OrderedDict
 
-nci_params = OrderedDict([('colsample_bylevel', 1.0),
-             ('colsample_bynode', 0.21747339007554714),
-             ('colsample_bytree', 0.3),
-             ('gamma', 0.34165675703813775),
-             ('learning_rate', 0.4416591777848587),
-             ('max_delta_step', 4),
-             ('max_depth', 9),
-             ('min_child_weight', 2),
-             ('n_estimators', 128),
-             ('reg_alpha', 8.996247710883825),
-             ('reg_lambda', 0.01),
-             ('subsample', 0.5619406651679848)])
-
-nci_model = XGBRegressor(objective='reg:squarederror', n_jobs=3, ** nci_params)
+# nci_params = OrderedDict([('colsample_bylevel', 1.0),
+#              ('colsample_bynode', 0.21747339007554714),
+#              ('colsample_bytree', 0.3),
+#              ('gamma', 0.34165675703813775),
+#              ('learning_rate', 0.4416591777848587),
+#              ('max_delta_step', 4),
+#              ('max_depth', 9),
+#              ('min_child_weight', 2),
+#              ('n_estimators', 128),
+#              ('reg_alpha', 8.996247710883825),
+#              ('reg_lambda', 0.01),
+#              ('subsample', 0.5619406651679848)])
+#
+# nci_model = XGBRegressor(objective='reg:squarederror', n_jobs=3, ** nci_params)
 
 plot_interp_line = np.random.choice(test_data_lines)
 X_val_line, y_val_line = create_train_test_set(data, plot_interp_line)
