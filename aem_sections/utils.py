@@ -50,9 +50,11 @@ def extract_required_aem_data(in_scope_aem_data, interp_data, thickness, conduct
     return aem_xy_and_other_covs, aem_conductivities, aem_thickness
 
 
-def create_train_test_set(data, conduct_cols, thickness, * included_interp_data, inclide_aem_covariate_cols=True):
+def create_train_test_set(data, conduct_cols, thickness, * included_interp_data,
+                          inclide_aem_covariate_cols=True, weighted_model=False):
     X = data['covariates']
     y = data['targets']
+    w = data['weights']
     included_lines = np.zeros(X.shape[0], dtype=bool)    # nothing is included
 
     for in_data in included_interp_data:
@@ -66,7 +68,7 @@ def create_train_test_set(data, conduct_cols, thickness, * included_interp_data,
     else:
         cols = conduct_cols + thickness
 
-    return X[included_lines][cols], y[included_lines], X[included_lines][twod_coords]
+    return X[included_lines][cols], y[included_lines], w[included_lines], X[included_lines][twod_coords]
 
 
 def extent_of_data(data: pd.DataFrame) -> Tuple[float, float, float, float]:
@@ -75,23 +77,30 @@ def extent_of_data(data: pd.DataFrame) -> Tuple[float, float, float, float]:
     return x_max, x_min, y_max, y_min
 
 
-def weighted_target(line_required: pd.DataFrame, tree: KDTree, x: np.ndarray):
+def weighted_target(line_required: pd.DataFrame, tree: KDTree, x: np.ndarray, weighted_model):
     ind, dist = tree.query_radius(x, r=radius, return_distance=True)
     ind, dist = ind[0], dist[0]
-    dist += 1e-6  # add just in case of we have a zero distance
     if len(dist):
+        dist += 1e-6  # add just in case of we have a zero distance
         df = line_required.iloc[ind]
         weighted_depth = np.sum(df.Z_coor * (1 / dist) ** 2) / np.sum((1 / dist) ** 2)
-        return weighted_depth
+        if weighted_model:
+            weighted_weight = np.sum(df.weight * (1 / dist) ** 2) / np.sum((1 / dist) ** 2)
+        else:
+            weighted_weight = None
+
+        return weighted_depth, weighted_weight
     else:
-        return None
+        return None, None
 
 
-def convert_to_xy(aem_xy_and_other_covs, aem_conductivities, aem_thickness, interp_data, twod=False):
+def convert_to_xy(aem_xy_and_other_covs, aem_conductivities, aem_thickness, interp_data, twod=False,
+                  weighted_model=False):
     log.info("convert to xy and target values...")
     selected = []
     tree = KDTree(interp_data[twod_coords if twod else threed_coords])
     target_depths = []
+    target_weights = []
     for xy, c, t in zip(aem_xy_and_other_covs.iterrows(), aem_conductivities.iterrows(), aem_thickness.iterrows()):
         i, covariates_including_xy_ = xy
         j, cc = c
@@ -99,27 +108,35 @@ def convert_to_xy(aem_xy_and_other_covs, aem_conductivities, aem_thickness, inte
         assert i == j == k
         if twod:
             x_y = covariates_including_xy_[twod_coords].values.reshape(1, -1)
-            y = weighted_target(interp_data, tree, x_y)
+            y, w = weighted_target(interp_data, tree, x_y, weighted_model)
             if y is not None:
-                selected.append(covariates_including_xy_)  # in 2d conductivities are already in xy
-                target_depths.append(y)
+                if weighted_model:
+                    if w is not None:
+                        selected.append(covariates_including_xy_)  # in 2d conductivities are already in xy
+                        target_depths.append(y)
+                        target_weights.append(w)
+                else:
+                    selected.append(covariates_including_xy_)  # in 2d conductivities are already in xy
+                    target_depths.append(y)
+                    target_weights.append(1.0)
         else:
             for ccc, ttt in zip(cc, tt):
                 covariates_including_xyz_ = covariates_including_xy_.append(
                     pd.Series([ttt, ccc], index=['Z_coor', 'conductivity'])
                 )
                 x_y_z = covariates_including_xyz_[threed_coords].values.reshape(1, -1)
-                y = weighted_target(interp_data, tree, x_y_z)
+                y, w = weighted_target(interp_data, tree, x_y_z, weighted_model)
                 if y is not None:
                     selected.append(covariates_including_xyz_)
                     target_depths.append(y)
 
     X = pd.DataFrame(selected)
     y = pd.Series(target_depths, name='target', index=X.index)
-    return {'covariates': X, 'targets': y}
+    w = pd.Series(target_weights, name='weight', index=X.index)
+    return {'covariates': X, 'targets': y, 'weights': w}
 
 
-def create_interp_data(input_interp_data, included_lines, line_col='line'):
+def create_interp_data(input_interp_data, included_lines, line_col='line', weighted_model=False):
     if not isinstance(included_lines, list):
         included_lines = [included_lines]
     line = input_interp_data[(input_interp_data['Type'] != 'WITHIN_Cenozoic')
@@ -127,7 +144,10 @@ def create_interp_data(input_interp_data, included_lines, line_col='line'):
                              & (input_interp_data[line_col].isin(included_lines))]
     # line = add_delta(line)
     line = line.rename(columns={'DEPTH': 'Z_coor'})
-    line_required = line[threed_coords]
+    if weighted_model:
+        line_required = line[threed_coords + ['weight']]
+    else:
+        line_required = line[threed_coords]
     return line_required
 
 
