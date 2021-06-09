@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-np.random.seed(6)
+np.random.seed(12)
 # Make numpy printouts easier to read.
 np.set_printoptions(precision=3, suppress=True)
 
@@ -69,10 +69,14 @@ test_data_lines = [create_interp_data(all_interp_data, included_lines=i, line_co
 
 all_data_lines = train_data_lines + val_data_lines + test_data_lines
 
-X_train, y_train, _ = create_train_test_set(data, conduct_cols, thickness_cols, * train_data_lines)
-X_val, y_val, _ = create_train_test_set(data, conduct_cols, thickness_cols, * val_data_lines)
-X_test, y_test, _ = create_train_test_set(data, conduct_cols, thickness_cols, * test_data_lines)
-X_train_val, y_train_val, _ = create_train_test_set(data, conduct_cols, thickness_cols, * train_data_lines, * val_data_lines)
+X_train, y_train, _ = create_train_test_set(data, conduct_cols, thickness_cols, *train_data_lines,
+                                            inclide_aem_covariate_cols=False)
+X_val, y_val, _ = create_train_test_set(data, conduct_cols, thickness_cols, *val_data_lines,
+                                        inclide_aem_covariate_cols=False)
+X_test, y_test, _ = create_train_test_set(data, conduct_cols, thickness_cols, *test_data_lines,
+                                          inclide_aem_covariate_cols=False)
+X_train_val, y_train_val, _ = create_train_test_set(data, conduct_cols, thickness_cols, *train_data_lines,
+                                                    *val_data_lines, inclide_aem_covariate_cols=False)
 
 
 def my_custom_scorer(reg, X, y):
@@ -131,10 +135,10 @@ searchcv = BayesSearchCV(
     scoring=my_custom_scorer
 )
 
-# searchcv.fit(X_train, y_train, callback=on_step)
-# import time
-# pickle.dump(searchcv, open(f"{reg.__class__.__name__}.{int(time.time())}.model", 'wb'))
-searchcv = pickle.load(open('XGBRegressor.1623139510.model', 'rb'))
+searchcv.fit(X_train, y_train, callback=on_step)
+import time
+pickle.dump(searchcv, open(f"{reg.__class__.__name__}.only_conductivity.{int(time.time())}.model", 'wb'))
+# searchcv = pickle.load(open('XGBRegressor.1623139510.model', 'rb'))
 
 final_model = XGBRegressor(objective='reg:squarederror', n_jobs=3, ** searchcv.best_params_)
 
@@ -190,8 +194,10 @@ from collections import OrderedDict
 
 
 plot_interp_line = test_data_lines[np.random.choice(len(test_data_lines))]
-X_val_line, y_val_line, X_val_line_coords = create_train_test_set(data, conduct_cols, thickness_cols, plot_interp_line)
-utils.plot_2d_section(X_val_line, X_val_line_coords, plot_interp_line, final_model, 'ceno_euc_a', conductivities, thickness_cols,
+X_val_line, y_val_line, X_val_line_coords = create_train_test_set(data, conduct_cols, thickness_cols, plot_interp_line,
+                                                                  inclide_aem_covariate_cols=False)
+utils.plot_2d_section(X_val_line, X_val_line_coords, plot_interp_line, final_model, 'ceno_euc_a', conductivities,
+                      thickness_cols,
                       slope=False,
                       flip_column=True, v_min=2, v_max=20)
 

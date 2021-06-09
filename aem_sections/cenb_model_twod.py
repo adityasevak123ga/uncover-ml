@@ -252,12 +252,10 @@ def plot_3d_validation_line(X_val):
     plt.show()
 
 
-def plot_feature_importance(X, y, optimised_model: BayesSearchCV):
-    xgb_model = XGBRegressor(**optimised_model.best_params_)
-    xgb_model.fit(X, y)
-    non_zero_indices = xgb_model.feature_importances_ >= 0.001
-    non_zero_cols = X_all.columns[non_zero_indices]
-    non_zero_importances = xgb_model.feature_importances_[non_zero_indices]
+def plot_feature_importance(X, y, xgbmodel: XGBRegressor):
+    non_zero_indices = xgbmodel.feature_importances_ >= 0.001
+    non_zero_cols = X.columns[non_zero_indices]
+    non_zero_importances = xgbmodel.feature_importances_[non_zero_indices]
     sorted_non_zero_indices = non_zero_importances.argsort()
     plt.barh(non_zero_cols[sorted_non_zero_indices], non_zero_importances[sorted_non_zero_indices])
     plt.xlabel("Xgboost Feature Importance")
