@@ -33,7 +33,7 @@ all_interp_data = gpd.GeoDataFrame.from_file(
     Path(aem_folder).joinpath('interpretation_zone53_albers_study_area_Ceno_depth.shp').as_posix()
 )
 
-weight_dict = {'H': 2, 'M':1, 'L': 0.5}
+weight_dict = {'H': 2, 'M': 1, 'L': 0.5}
 all_interp_data['weight'] = all_interp_data['BoundConf'].map(weight_dict)
 log.info("reading covariates ...")
 original_aem_data = gpd.GeoDataFrame.from_file(Path(aem_folder).joinpath('high_res_cond_clip_albers_skip_6.shp').as_posix())

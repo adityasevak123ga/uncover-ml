@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Optional, List
 
 import numpy as np
 import pandas as pd
@@ -17,6 +17,8 @@ twod_coords = ['POINT_X', 'POINT_Y']
 threed_coords = twod_coords + ['Z_coor']
 aem_covariate_cols = ['ceno_euc_a', 'Gravity_la', 'national_W', 'relief_ele', 'relief_mrv', 'SagaWET9ce'] \
                      + ['elevation', 'tx_height']
+
+
 # categorical = 'relief_mrv'
 # covariate_cols_without_xyz = aem_covariate_cols + ['conductivity']
 # final_cols = coords + aem_covariate_cols + ['Z_coor']
@@ -50,23 +52,24 @@ def extract_required_aem_data(in_scope_aem_data, interp_data, thickness, conduct
     return aem_xy_and_other_covs, aem_conductivities, aem_thickness
 
 
-def create_train_test_set(data, conduct_cols, thickness, * included_interp_data,
-                          inclide_aem_covariate_cols=True, weighted_model=False):
+def create_train_test_set(data, conduct_cols, thickness, *included_interp_data,
+                          included_cols=Optional[List],
+                          weighted_model=False):
     X = data['covariates']
     y = data['targets']
-    w = data['weights']
-    included_lines = np.zeros(X.shape[0], dtype=bool)    # nothing is included
+    w = data['weight']
+    included_lines = np.zeros(X.shape[0], dtype=bool)  # nothing is included
 
     for in_data in included_interp_data:
         x_max, x_min, y_max, y_min = extent_of_data(in_data)
         included_lines = included_lines | \
-                           ((X.POINT_X < x_max + dis_tol) & (X.POINT_X > x_min - dis_tol) &
-                            (X.POINT_Y < y_max + dis_tol) & (X.POINT_Y > y_min - dis_tol))
+                         ((X.POINT_X < x_max + dis_tol) & (X.POINT_X > x_min - dis_tol) &
+                          (X.POINT_Y < y_max + dis_tol) & (X.POINT_Y > y_min - dis_tol))
 
-    if inclide_aem_covariate_cols:
-        cols = aem_covariate_cols + conduct_cols + thickness
-    else:
-        cols = conduct_cols + thickness
+    if included_cols:
+        cols = included_cols
+    else:  # include all covairates + cols
+        cols = conduct_cols + thickness + aem_covariate_cols
 
     return X[included_lines][cols], y[included_lines], w[included_lines], X[included_lines][twod_coords]
 
@@ -159,8 +162,8 @@ def add_delta(line, origin=None):
     line['delta'] = line['delta'].fillna(value=0.0)
     if origin is not None:
         line['delta'].iat[0] = np.sqrt(
-            (line.POINT_X.iat[0]-origin[0]) ** 2 +
-            (line.POINT_Y.iat[0]-origin[1]) ** 2
+            (line.POINT_X.iat[0] - origin[0]) ** 2 +
+            (line.POINT_Y.iat[0] - origin[1]) ** 2
         )
 
     line['d'] = line['delta'].cumsum()
@@ -213,7 +216,7 @@ def plot_2d_section(X_val_line: pd.DataFrame,
     y_pred = -model.predict(X_val_line[original_cols])
     pred = savgol_filter(y_pred, 11, 3)  # window size 51, polynomial order 3
     ax.plot(X_val_line.d, pred, label='prediction', linewidth=2, color='r')
-    ax.plot(val_interp_line.d, -val_interp_line.Z_coor, label='interpretation', linewidth=2, color='k')
+    ax.plot(val_interp_line.weight_dict, -val_interp_line.Z_coor, label='interpretation', linewidth=2, color='k')
     # for c in col_names:
     #     axs.plot(X_val_line.d, -X_val_line[c] if flip_column else X_val_line[c], label=c, linewidth=2, color='orange')
 

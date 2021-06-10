@@ -22,7 +22,7 @@ np.random.seed(12)
 np.set_printoptions(precision=3, suppress=True)
 
 from aem_sections import utils
-from aem_sections.utils import extract_required_aem_data, convert_to_xy, create_interp_data, create_train_test_set, plot_2d_section
+from aem_sections.utils import extract_required_aem_data, convert_to_xy, create_interp_data, create_train_test_set
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger()
@@ -32,10 +32,12 @@ log.info("reading interp data...")
 all_interp_data = gpd.GeoDataFrame.from_file(
     Path(aem_folder).joinpath('interpretation_zone53_albers_study_area_Ceno_depth.shp').as_posix()
 )
+weight_dict = {'H': 2, 'M': 1, 'L': 0.5}
+all_interp_data['weight'] = all_interp_data['BoundConf'].map(weight_dict)
 
 log.info("reading covariates ...")
-original_aem_data = gpd.GeoDataFrame.from_file(Path(aem_folder).joinpath('high_res_cond_clip_albers_skip_6.shp').as_posix())
-
+original_aem_data = gpd.GeoDataFrame.from_file(
+    Path(aem_folder).joinpath('high_res_cond_clip_albers_skip_6.shp').as_posix())
 
 # columns
 conductivities = [c for c in original_aem_data.columns if c.startswith('cond')]
@@ -48,12 +50,10 @@ lines_in_data = np.unique(all_interp_data[line_col])
 train_and_val_lines_in_data, test_lines_in_data = train_test_split(lines_in_data, test_size=0.2)
 train_lines_in_data, val_lines_in_data = train_test_split(train_and_val_lines_in_data, test_size=0.25)
 
-
 all_lines = create_interp_data(all_interp_data, included_lines=list(lines_in_data), line_col=line_col)
 aem_xy_and_other_covs, aem_conductivities, aem_thickness = extract_required_aem_data(
     original_aem_data, all_lines, thickness_cols, conductivities, twod=True, include_thickness=True,
     add_conductivity_derivative=True)
-
 
 if not Path('covariates_targets_2d.data').exists():
     data = convert_to_xy(aem_xy_and_other_covs, aem_conductivities, aem_thickness, all_lines, twod=True)
@@ -63,20 +63,22 @@ else:
     log.warning("Reusing data from disc!!!")
     data = pickle.load(open('covariates_targets_2d.data', 'rb'))
 
-train_data_lines = [create_interp_data(all_interp_data, included_lines=i, line_col=line_col) for i in train_lines_in_data]
+train_data_lines = [create_interp_data(all_interp_data, included_lines=i, line_col=line_col) for i in
+                    train_lines_in_data]
 val_data_lines = [create_interp_data(all_interp_data, included_lines=i, line_col=line_col) for i in val_lines_in_data]
 test_data_lines = [create_interp_data(all_interp_data, included_lines=i, line_col=line_col) for i in test_lines_in_data]
 
 all_data_lines = train_data_lines + val_data_lines + test_data_lines
+included_cols = conduct_cols + thickness_cols + ['elevation']
 
 X_train, y_train, _ = create_train_test_set(data, conduct_cols, thickness_cols, *train_data_lines,
-                                            inclide_aem_covariate_cols=False)
+                                            included_cols=included_cols)
 X_val, y_val, _ = create_train_test_set(data, conduct_cols, thickness_cols, *val_data_lines,
-                                        inclide_aem_covariate_cols=False)
+                                        included_cols=included_cols)
 X_test, y_test, _ = create_train_test_set(data, conduct_cols, thickness_cols, *test_data_lines,
-                                          inclide_aem_covariate_cols=False)
+                                          included_cols=included_cols)
 X_train_val, y_train_val, _ = create_train_test_set(data, conduct_cols, thickness_cols, *train_data_lines,
-                                                    *val_data_lines, inclide_aem_covariate_cols=False)
+                                                    *val_data_lines, included_cols=included_cols)
 
 
 def my_custom_scorer(reg, X, y):
@@ -137,10 +139,11 @@ searchcv = BayesSearchCV(
 
 searchcv.fit(X_train, y_train, callback=on_step)
 import time
+
 pickle.dump(searchcv, open(f"{reg.__class__.__name__}.only_conductivity.{int(time.time())}.model", 'wb'))
 # searchcv = pickle.load(open('XGBRegressor.1623139510.model', 'rb'))
 
-final_model = XGBRegressor(objective='reg:squarederror', n_jobs=3, ** searchcv.best_params_)
+final_model = XGBRegressor(objective='reg:squarederror', n_jobs=3, **searchcv.best_params_)
 
 final_model.fit(X_train_val, y_train_val)
 print(r2_score(y_train, searchcv.predict(X_train)))
@@ -195,10 +198,15 @@ from collections import OrderedDict
 
 plot_interp_line = test_data_lines[np.random.choice(len(test_data_lines))]
 X_val_line, y_val_line, X_val_line_coords = create_train_test_set(data, conduct_cols, thickness_cols, plot_interp_line,
-                                                                  inclide_aem_covariate_cols=False)
+                                                                  included_cols=included_cols)
 utils.plot_2d_section(X_val_line, X_val_line_coords, plot_interp_line, final_model, 'ceno_euc_a', conductivities,
                       thickness_cols,
                       slope=False,
                       flip_column=True, v_min=2, v_max=20)
 
-import IPython; IPython.embed(); import sys; sys.exit()
+import IPython;
+
+IPython.embed();
+import sys;
+
+sys.exit()

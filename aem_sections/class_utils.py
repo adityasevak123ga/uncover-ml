@@ -67,7 +67,7 @@ from scipy.interpolate import SmoothBivariateSpline
 c = 'conductivity'
 interpolator = SmoothBivariateSpline(x=X['d']/1000, y=X['Z_coor'], z=X[c])
 
-d = np.linspace(min(X.d)/1000, max(X.d)/1000, 100)
+d = np.linspace(min(X.weight_dict) / 1000, max(X.weight_dict) / 1000, 100)
 depths = np.linspace(min(X.Z_coor), max(X.Z_coor), 100)  # y
 mesh = np.meshgrid(d, depths)
 cov = interpolator.ev(* mesh)
@@ -77,7 +77,7 @@ ax.contourf(d, depths, cov)
 ax.xaxis.grid(True, zorder=0)
 ax.yaxis.grid(True, zorder=0)
 
-ax.plot(line.d/1000, line.DEPTH, color="c", linewidth=2)
+ax.plot(line.weight_dict / 1000, line.DEPTH, color="c", linewidth=2)
 ax.set_xlabel('Distance')
 ax.set_ylabel('Depth')
 
@@ -108,7 +108,7 @@ import IPython; IPython.embed(); import sys; sys.exit()
 
 import IPython; IPython.embed(); import sys; sys.exit()
 
-plt.plot(line.d.values, line.DEPTH)
+plt.plot(line.weight_dict.values, line.DEPTH)
 plt.show()
 
 

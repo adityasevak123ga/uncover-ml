@@ -166,8 +166,8 @@ def plot_validation_line(X_val: pd.DataFrame, val_data_line: pd.DataFrame, model
     X_val = add_delta(X_val)
     origin = (X_val.X_coor.iat[0], X_val.Y_coor.iat[0])
     val_data_line = add_delta(val_data_line, origin=origin)
-    plt.plot(X_val.d, model.predict(X_val[original_cols]), label='prediction')
-    plt.plot(val_data_line.d, val_data_line.Z_coor, label='interpretation')
+    plt.plot(X_val.weight_dict, model.predict(X_val[original_cols]), label='prediction')
+    plt.plot(val_data_line.weight_dict, val_data_line.Z_coor, label='interpretation')
     plt.xlabel('distance')
     plt.ylabel('cen-b depth')
     plt.legend()
@@ -190,7 +190,7 @@ def plot_2d_section(X: pd.DataFrame, val_data_line: pd.DataFrame, model: BayesSe
     # Z = X[d_conduct_cols]
     # Z = Z - np.min(np.min((Z))) + 1.0e-5
     h = X[thickness]
-    dd = X.d
+    dd = X.weight_dict
     ddd = np.atleast_2d(dd).T
     d = np.repeat(ddd, h.shape[1], axis=1)
     fig, ax = plt.subplots(figsize=(40, 4))
@@ -200,10 +200,10 @@ def plot_2d_section(X: pd.DataFrame, val_data_line: pd.DataFrame, model: BayesSe
     im = ax.pcolormesh(d, -h, Z, norm=LogNorm(), cmap=cmap, linewidth=1, rasterized=True)
     fig.colorbar(im, ax=ax)
     axs = ax.twinx()
-    ax.plot(X.d, -model.predict(X[original_cols]), label='prediction', linewidth=2, color='r')
-    ax.plot(val_data_line.d, -val_data_line.Z_coor, label='interpretation', linewidth=2, color='k')
+    ax.plot(X.weight_dict, -model.predict(X[original_cols]), label='prediction', linewidth=2, color='r')
+    ax.plot(val_data_line.weight_dict, -val_data_line.Z_coor, label='interpretation', linewidth=2, color='k')
 
-    axs.plot(X.d, -X[col_name] if flip_column else X[col_name], label=col_name, linewidth=2, color='orange')
+    axs.plot(X.weight_dict, -X[col_name] if flip_column else X[col_name], label=col_name, linewidth=2, color='orange')
 
     ax.set_xlabel('distance along aem line (m)')
     ax.set_ylabel('depth (m)')
