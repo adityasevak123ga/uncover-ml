@@ -33,20 +33,8 @@ all_interp_data = gpd.GeoDataFrame.from_file(
     Path(aem_folder).joinpath('interpretation_zone53_albers_study_area_Ceno_depth.shp').as_posix()
 )
 
-
-def weight(row):
-    conf = row['BoundConf']
-    if conf == 'H':
-        w = 2
-    elif conf == 'M':
-        w = 1
-    else:
-        w = 0.5
-    return w
-
-
-all_interp_data['weight'] = all_interp_data.apply(lambda r: weight(r), axis=1)
-
+weight_dict = {'H': 2, 'M':1, 'L': 0.5}
+all_interp_data['weight'] = all_interp_data['BoundConf'].map(weight_dict)
 log.info("reading covariates ...")
 original_aem_data = gpd.GeoDataFrame.from_file(Path(aem_folder).joinpath('high_res_cond_clip_albers_skip_6.shp').as_posix())
 
@@ -203,7 +191,7 @@ from collections import OrderedDict
 #                            ('subsample', 1.0)])
 
 
-plot_interp_line = test_data_lines[np.random.choice(len(test_data_lines))]
+plot_interp_line = test_data_lines[2]
 X_val_line, y_val_line, w_val_line, X_val_line_coords = create_train_test_set(data, conduct_cols, thickness_cols, plot_interp_line)
 utils.plot_2d_section(X_val_line, X_val_line_coords, plot_interp_line, final_model, 'ceno_euc_a', conductivities, thickness_cols,
                       slope=False,
