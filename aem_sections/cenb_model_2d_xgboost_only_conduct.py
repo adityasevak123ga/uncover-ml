@@ -56,7 +56,8 @@ aem_xy_and_other_covs, aem_conductivities, aem_thickness = extract_required_aem_
     add_conductivity_derivative=True)
 
 if not Path('covariates_targets_2d.data').exists():
-    data = convert_to_xy(aem_xy_and_other_covs, aem_conductivities, aem_thickness, all_lines, twod=True)
+    data = convert_to_xy(aem_xy_and_other_covs, aem_conductivities, aem_thickness, all_lines, twod=True,
+                         weighted_model=True)
     log.info("saving data on disc for future use")
     pickle.dump(data, open('covariates_targets_2d.data', 'wb'))
 else:
@@ -71,14 +72,14 @@ test_data_lines = [create_interp_data(all_interp_data, included_lines=i, line_co
 all_data_lines = train_data_lines + val_data_lines + test_data_lines
 included_cols = conduct_cols + thickness_cols + ['elevation']
 
-X_train, y_train, _ = create_train_test_set(data, conduct_cols, thickness_cols, *train_data_lines,
-                                            included_cols=included_cols)
-X_val, y_val, _ = create_train_test_set(data, conduct_cols, thickness_cols, *val_data_lines,
-                                        included_cols=included_cols)
-X_test, y_test, _ = create_train_test_set(data, conduct_cols, thickness_cols, *test_data_lines,
-                                          included_cols=included_cols)
-X_train_val, y_train_val, _ = create_train_test_set(data, conduct_cols, thickness_cols, *train_data_lines,
-                                                    *val_data_lines, included_cols=included_cols)
+X_train, y_train, _, _ = create_train_test_set(data, conduct_cols, thickness_cols, *train_data_lines,
+                                               included_cols=included_cols)
+X_val, y_val, _, _ = create_train_test_set(data, conduct_cols, thickness_cols, *val_data_lines,
+                                           included_cols=included_cols)
+X_test, y_test, _, _ = create_train_test_set(data, conduct_cols, thickness_cols, *test_data_lines,
+                                             included_cols=included_cols)
+X_train_val, y_train_val, _, _ = create_train_test_set(data, conduct_cols, thickness_cols, *train_data_lines,
+                                                       *val_data_lines, included_cols=included_cols)
 
 
 def my_custom_scorer(reg, X, y):
@@ -197,8 +198,9 @@ from collections import OrderedDict
 
 
 plot_interp_line = test_data_lines[np.random.choice(len(test_data_lines))]
-X_val_line, y_val_line, X_val_line_coords = create_train_test_set(data, conduct_cols, thickness_cols, plot_interp_line,
-                                                                  included_cols=included_cols)
+X_val_line, y_val_line, _, X_val_line_coords = create_train_test_set(data, conduct_cols, thickness_cols,
+                                                                     plot_interp_line,
+                                                                     included_cols=included_cols)
 utils.plot_2d_section(X_val_line, X_val_line_coords, plot_interp_line, final_model, 'ceno_euc_a', conductivities,
                       thickness_cols,
                       slope=False,

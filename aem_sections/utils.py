@@ -57,7 +57,10 @@ def create_train_test_set(data, conduct_cols, thickness, *included_interp_data,
                           weighted_model=False):
     X = data['covariates']
     y = data['targets']
-    w = data['weight']
+    if weighted_model:
+        w = data['weight']
+    else:
+        w = np.ones_like(y)
     included_lines = np.zeros(X.shape[0], dtype=bool)  # nothing is included
 
     for in_data in included_interp_data:

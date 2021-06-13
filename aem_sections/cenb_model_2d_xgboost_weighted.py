@@ -22,7 +22,8 @@ np.random.seed(6)
 np.set_printoptions(precision=3, suppress=True)
 
 from aem_sections import utils
-from aem_sections.utils import extract_required_aem_data, convert_to_xy, create_interp_data, create_train_test_set, plot_2d_section
+from aem_sections.utils import extract_required_aem_data, convert_to_xy, create_interp_data, create_train_test_set, \
+    plot_2d_section
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger()
@@ -36,8 +37,8 @@ all_interp_data = gpd.GeoDataFrame.from_file(
 weight_dict = {'H': 2, 'M': 1, 'L': 0.5}
 all_interp_data['weight'] = all_interp_data['BoundConf'].map(weight_dict)
 log.info("reading covariates ...")
-original_aem_data = gpd.GeoDataFrame.from_file(Path(aem_folder).joinpath('high_res_cond_clip_albers_skip_6.shp').as_posix())
-
+original_aem_data = gpd.GeoDataFrame.from_file(
+    Path(aem_folder).joinpath('high_res_cond_clip_albers_skip_6.shp').as_posix())
 
 # columns
 conductivities = [c for c in original_aem_data.columns if c.startswith('cond')]
@@ -65,16 +66,18 @@ else:
     log.warning("Reusing data from disc!!!")
     data = pickle.load(open('covariates_targets_2d_weights.data', 'rb'))
 
-train_data_lines = [create_interp_data(all_interp_data, included_lines=i, line_col=line_col) for i in train_lines_in_data]
+train_data_lines = [create_interp_data(all_interp_data, included_lines=i, line_col=line_col) for i in
+                    train_lines_in_data]
 val_data_lines = [create_interp_data(all_interp_data, included_lines=i, line_col=line_col) for i in val_lines_in_data]
 test_data_lines = [create_interp_data(all_interp_data, included_lines=i, line_col=line_col) for i in test_lines_in_data]
 
 all_data_lines = train_data_lines + val_data_lines + test_data_lines
 
-X_train, y_train, w_train, _ = create_train_test_set(data, conduct_cols, thickness_cols, * train_data_lines)
-X_val, y_val, w_val, _ = create_train_test_set(data, conduct_cols, thickness_cols, * val_data_lines)
-X_test, y_test, w_test, _ = create_train_test_set(data, conduct_cols, thickness_cols, * test_data_lines)
-X_train_val, y_train_val, w_train_val, _ = create_train_test_set(data, conduct_cols, thickness_cols, * train_data_lines, * val_data_lines)
+X_train, y_train, w_train, _ = create_train_test_set(data, conduct_cols, thickness_cols, *train_data_lines)
+X_val, y_val, w_val, _ = create_train_test_set(data, conduct_cols, thickness_cols, *val_data_lines)
+X_test, y_test, w_test, _ = create_train_test_set(data, conduct_cols, thickness_cols, *test_data_lines)
+X_train_val, y_train_val, w_train_val, _ = create_train_test_set(data, conduct_cols, thickness_cols, *train_data_lines,
+                                                                 *val_data_lines)
 
 
 def my_custom_scorer(reg, X, y):
@@ -135,10 +138,11 @@ searchcv = BayesSearchCV(
 
 searchcv.fit(X_train, y_train, callback=on_step)
 import time
+
 pickle.dump(searchcv, open(f"{reg.__class__.__name__}.{int(time.time())}.model", 'wb'))
 # searchcv = pickle.load(open('XGBRegressionPPT2.model', 'rb'))
 
-final_model = XGBRegressor(objective='reg:squarederror', n_jobs=3, ** searchcv.best_params_)
+final_model = XGBRegressor(objective='reg:squarederror', n_jobs=3, **searchcv.best_params_)
 
 final_model.fit(X_train_val, y_train_val, sample_weight=w_train_val)
 print(r2_score(y_train, searchcv.predict(X_train), sample_weight=w_train))
@@ -192,9 +196,16 @@ from collections import OrderedDict
 
 
 plot_interp_line = test_data_lines[2]
-X_val_line, y_val_line, w_val_line, X_val_line_coords = create_train_test_set(data, conduct_cols, thickness_cols, plot_interp_line)
-utils.plot_2d_section(X_val_line, X_val_line_coords, plot_interp_line, final_model, 'ceno_euc_a', conductivities, thickness_cols,
+X_val_line, y_val_line, w_val_line, X_val_line_coords = create_train_test_set(data, conduct_cols, thickness_cols,
+                                                                              plot_interp_line)
+utils.plot_2d_section(X_val_line, X_val_line_coords, plot_interp_line, final_model, 'ceno_euc_a', conductivities,
+                      thickness_cols,
                       slope=False,
                       flip_column=True, v_min=2, v_max=20)
 
-import IPython; IPython.embed(); import sys; sys.exit()
+import IPython;
+
+IPython.embed();
+import sys;
+
+sys.exit()
