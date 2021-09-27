@@ -5,6 +5,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import sys
 from sklearn.model_selection import cross_val_score, GroupKFold, KFold
 from hyperopt import fmin, tpe, anneal, Trials
 from hyperopt.hp import uniform, randint, choice, loguniform, quniform
@@ -39,10 +40,13 @@ def bayesian_optimisation(X, y, w, groups, conf: Config):
     random_state = conf.hyperopt_params.pop('rstate')
     rstate = np.random.RandomState(random_state)
 
-    if len(np.unique(groups)) > 1:
+    if len(np.unique(groups)) > cv_folds:
         log.info(f'Using GroupKFold with {cv_folds} folds')
         cv = GroupKFold(n_splits=cv_folds)
     else:
+        if cv_folds > len(np.unique(groups)):
+            sys.exit(f"You have group cross-validation on, \n"
+                     f"but number of groups are less than {cv_folds}!")
         log.info(f'Using KFold with {cv_folds} folds')
         cv = KFold(n_splits=cv_folds)
 
