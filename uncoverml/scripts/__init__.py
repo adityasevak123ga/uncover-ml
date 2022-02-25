@@ -30,7 +30,7 @@ from uncoverml.transforms import StandardiseTransform
 from uncoverml.scripts import (
     cluster_cli, covdiag_cli, gammasensor_cli, gridsearch_cli, 
     learn_cli, predict_cli, resample_cli, shiftmap_cli, subsample_cli, 
-    tiff2kmz_cli, targetsearch_cli, modelfix_cli
+    tiff2kmz_cli, targetsearch_cli, modelfix_cli, superlearn_cli
 )
                                
 
@@ -140,6 +140,14 @@ def shiftmap(config_file, partitions):
               help='divide each node\'s data into this many partitions')
 def learn(config_file, partitions):
     learn_cli.main(config_file, partitions)
+
+
+@cli.command()
+@click.argument('config_file')
+@click.option('-p', '--partitions', type=int, default=1,
+              help='divide each node\'s data into this many partitions')
+def superlearn(config_file, partitions):
+    superlearn_cli.main(config_file, partitions)
 
 
 @cli.command()
