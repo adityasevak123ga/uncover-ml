@@ -68,6 +68,7 @@ def main(yaml_file, partitions):
     model_lst = []
     df = pd.DataFrame()
     for alg in learn_lst:
+        _logger.info(f"Base model {alg['algorithm']} learning about to begin...")
         ddd.update({"learning": alg})
         ddd.update(s)
         alg_outdir = f"./{alg['algorithm']}_out"
@@ -93,10 +94,11 @@ def main(yaml_file, partitions):
         else:
             mask = None
 
+        _logger.info(f"Base model {alg['algorithm']} predictions about to begin...")
         try:
             uncoverml.scripts.predict.callback(alg_yaml, partitions, mask, retain)
         except TypeError:
-            _logger.error(f"Learner {alg} cannot predict")
+            _logger.error(f"Learner {alg['algorithm']} cannot predict")
 
         pred = pd.read_csv(alg_outdir + f"/{alg['algorithm']}_crossval_results.csv")
         pred.rename(columns={'# y_true': 'y_true', 'y_pred': alg['algorithm']}, inplace=True)
@@ -106,9 +108,8 @@ def main(yaml_file, partitions):
             df = df.merge(pred, on=['y_true', 'x', 'y'])
 
     df.drop(columns=['x', 'y'], inplace=True)
-    _logger.info(f"Base model training set predictions:\n{df.head()}")
-    _logger.info("..........")
-    _logger.info(df.tail())
+    _logger.info(f"\nBase model training set predictions:\n{df.head()}")
+    _logger.info(f"...\n{df.tail()}")
     y = df['y_true'].values
     X = df.drop(columns='y_true').values
     super_cv(X, y)
@@ -132,8 +133,8 @@ def super_cv(X, y, n_splits=5):
         train_y, test_y = y[train_ix], y[test_ix]
         sm_fold = fit_super_model(train_X, train_y)
         meta_y.extend(sm_fold.predict(test_X))
-    _logger.info("SUPER CV smse: {smse(y, meta_y)}")
-    _logger.info("SUPER CV r2: {r2_score(y, meta_y)}")
+    _logger.info(f"SUPER CV smse: {smse(y, meta_y)}")
+    _logger.info(f"SUPER CV r2: {r2_score(y, meta_y)}")
     plt.scatter(y, meta_y)
     plt.xlabel("True target")
     plt.ylabel("Super-learner predicted");
@@ -147,11 +148,11 @@ def super_train(X, y):
     """
 
     s_model = fit_super_model(X, y)
-    _logger.info(f"{s_model.coef_}")
-    print(s_model.intercept_)
+    _logger.info(f"SUPER coeffs: {s_model.coef_}")
+    _logger.info(f"SUPER intercept: {s_model.intercept_}")
     y_super = s_model.predict(X[:, :])
-    print("smse:", smse(y, y_super))
-    print("r2:", r2_score(y, y_super))
+    print("SUPER smse:", smse(y, y_super))
+    print("SUPER r2:", r2_score(y, y_super))
     plt.scatter(y, y_super)
     plt.xlabel("True target")
     plt.ylabel("Super-learner predicted")
